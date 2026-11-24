@@ -1,0 +1,1294 @@
+/* Frise chronologique — PCF 79 et La Voix des Luttes.
+   Le composant n'a aucune couleur à lui : il lit la charte (--paper, --ink, --red,
+   --yellow, --line, --muted). Chaque site règle son habillage par les variables
+   --frise-* de la section 1. Seuls transform, opacity et des variables de couleur
+   sont animés. */
+
+/* ------------------------------------------------------------------ 1. Variables */
+
+/* L'âge du papier : 0 aujourd'hui, 1 au début des archives. Déclarée par
+   @property, la variable s'interpole au lieu de sauter. */
+@property --frise-age {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+:root {
+  --frise-age: 0;
+  --frise-hauteur: 6.6rem; /* tenue à jour par le script */
+  --frise-ressort: cubic-bezier(.2, 1.35, .35, 1);
+  --frise-ressort-doux: cubic-bezier(.2, .9, .25, 1);
+  --frise-papier-neuf: #f8f3e9;
+  --frise-papier-vieux: #efe1bf;
+  scroll-padding-bottom: calc(var(--frise-hauteur) + 1rem);
+  transition: --frise-age .9s cubic-bezier(.2, .7, .2, 1);
+}
+
+/* De vrais ressorts, là où linear() existe. */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --frise-ressort: linear(0, .03, .108, .216, .34, .469, .594, .708, .809, .894, .962, 1.015, 1.052, 1.076, 1.09, 1.095, 1.093, 1.086, 1.076, 1.065, 1.052, 1.04, 1.029, 1.02, 1.011, 1.005, .999, .996, .993, .992, .991, .991, .992, .993, .994, .995, .996, .997, .998, .999, 1);
+    --frise-ressort-doux: linear(0, .025, .086, .171, .266, .365, .461, .551, .633, .706, .769, .822, .866, .903, .932, .955, .972, .985, .995, 1.002, 1.006, 1.009, 1.011, 1.011, 1.011, 1.01, 1.009, 1.008, 1.007, 1.006, 1.005, 1.004, 1);
+  }
+}
+
+/* Habillage du site fédéral (par défaut). */
+body {
+  --frise-filet: var(--red);
+  --frise-tete: var(--yellow);
+  --frise-tete-encre: var(--ink);
+  --frise-ombre: 3px 3px 0 var(--ink);
+  --frise-barre: #8f8175;
+  --frise-une-fond: var(--red);
+  --frise-une-encre: var(--paper);
+  --frise-une-accent: var(--yellow);
+  --frise-une-filet: var(--red);
+  --frise-une-rubrique: var(--paper);
+  --frise-bandeau-fond: var(--yellow);
+  --frise-bandeau-encre: var(--red);
+}
+
+/* Habillage du journal : mêmes règles, autres valeurs. */
+.journal {
+  --frise-filet: var(--ink);
+  --frise-tete: var(--yellow);
+  --frise-tete-encre: var(--ink);
+  --frise-ombre: 2px 2px 0 var(--ink);
+  --frise-barre: #8b857b;
+  --frise-une-fond: transparent;
+  --frise-une-encre: var(--ink);
+  --frise-une-accent: var(--red);
+  --frise-une-filet: transparent;
+  --frise-une-rubrique: var(--red);
+  --frise-bandeau-fond: var(--red);
+  --frise-bandeau-encre: #fff;
+  --frise-papier-neuf: #f8f4ea;
+  --frise-papier-vieux: #ede1c4;
+}
+
+/* Le papier jaunit quand on recule : tout ce qui lit --paper vieillit ensemble. */
+@supports (color: color-mix(in oklab, #fff, #000 50%)) {
+  :root,
+  .journal {
+    --paper: color-mix(in oklab, var(--frise-papier-neuf), var(--frise-papier-vieux) calc(var(--frise-age) * 100%));
+  }
+}
+
+/* ------------------------------------------------------------------ 2. La frise */
+
+.frise {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  background: var(--paper);
+  border-top: 3px solid var(--frise-filet);
+  color: var(--ink);
+  font-family: Space, Arial, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  transform: translateY(105%);
+  transition: transform .7s var(--frise-ressort-doux);
+  view-transition-name: frise-barre;
+}
+
+.frise.est-prete {
+  transform: none;
+}
+
+.frise-presente footer {
+  padding-bottom: calc(1.5rem + var(--frise-hauteur));
+}
+
+.frise-int {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 1.1rem;
+  width: min(94%, 83rem);
+  margin: auto;
+  padding: .5rem 0 max(.5rem, env(safe-area-inset-bottom));
+}
+
+
+.frise-bouton {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0 .7rem;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 700 .82rem/1 Space, Arial, sans-serif;
+  white-space: nowrap;
+  transition: transform .18s var(--frise-ressort);
+}
+
+.frise-bouton:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+}
+
+.frise-bouton:active:not(:disabled) {
+  transform: translate(2px, 2px);
+}
+
+.frise-bouton:disabled {
+  border-color: var(--line);
+  color: var(--line);
+  cursor: default;
+}
+
+
+.frise-aujourdhui {
+  background: var(--frise-tete);
+  color: var(--frise-tete-encre);
+  box-shadow: var(--frise-ombre);
+}
+
+.frise-aujourdhui:disabled {
+  background: var(--paper);
+  box-shadow: none;
+}
+
+/* La piste : le curseur de la frise. */
+.frise-piste {
+  position: relative;
+  height: 5.2rem;
+  overflow: hidden;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.frise-piste:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 2px;
+}
+
+.frise[data-geste] .frise-piste {
+  cursor: grabbing;
+}
+
+.frise-ruban {
+  --frise-pas: 8px;
+  --frise-largeur-barre: max(3px, calc(var(--frise-pas) - 3px));
+  position: absolute;
+  transform-origin: 0 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.frise-ligne {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.45rem;
+  height: 1px;
+  background: var(--ink);
+}
+
+/* Le chemin parcouru depuis aujourd'hui : un filet épais, étiré par transform. */
+.frise-parcouru {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(1.45rem - 1px);
+  height: 3px;
+  background: var(--frise-filet);
+  transform-origin: 100% 50%;
+  transform: scaleX(0);
+}
+
+/* Un mois : une barre (le nombre de publications) et sa graduation. */
+.frise-mois {
+  position: absolute;
+  bottom: 1.45rem;
+  left: calc(var(--i) * var(--frise-pas));
+  width: var(--frise-largeur-barre);
+  height: calc(var(--h) * 1.75rem);
+  margin-left: calc(var(--frise-largeur-barre) / -2);
+  background: var(--frise-barre);
+  transform-origin: 50% 100%;
+  transform: scaleX(calc(1 / var(--z, 1))) scaleY(var(--frise-zy));
+  transition: background-color .15s;
+}
+
+/* Zoom quand la frise est saisie : barres plus hautes (ressort), initiales des mois. */
+@property --frise-zy {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+.frise-ruban {
+  --frise-zy: 1;
+  transition: --frise-zy .55s var(--frise-ressort);
+}
+
+.frise.est-saisie .frise-ruban {
+  --frise-zy: 1.55;
+}
+
+.frise-lettre {
+  position: absolute;
+  bottom: .1rem;
+  left: calc(var(--i) * var(--frise-pas));
+  padding: 0 .15rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 13px/1.15 Space, Arial, sans-serif;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-50%) scaleX(calc(1 / var(--z, 1)));
+  transition: opacity .2s;
+  pointer-events: none;
+}
+
+.frise-lettre.est-annee {
+  font-weight: 700;
+}
+
+/* Le mois actif : un rectangle jaune à bord noir, dans les deux habillages. */
+.frise-lettre.est-choisi {
+  z-index: 1;
+  padding: .05rem .3rem;
+  background: var(--yellow);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-weight: 700;
+}
+
+.frise.est-saisie .frise-lettre {
+  opacity: 1;
+}
+
+.frise.est-saisie .frise-an {
+  opacity: 0;
+}
+
+.frise-an {
+  transition: opacity .2s;
+}
+
+/* Survol (souris) : le mois se lève et se nomme. */
+.frise-mois.est-survole {
+  background: var(--ink);
+  --frise-zy: 1.35;
+}
+
+.frise-survol {
+  position: absolute;
+  left: 0;
+  bottom: 4.6rem;
+  padding: .25rem .4rem;
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 .66rem/1 Space, Arial, sans-serif;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s;
+  z-index: 1;
+}
+
+.frise-survol.est-visible {
+  opacity: 1;
+}
+
+.frise-mois::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: .3rem;
+  margin-left: -.5px;
+  background: var(--ink);
+}
+
+.frise-mois.est-janvier::after {
+  height: .62rem;
+}
+
+.frise-mois.est-choisi {
+  z-index: 1;
+  background: var(--yellow);
+  outline: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.frise.est-prete .frise-mois {
+  animation: frise-pousse-barre .6s var(--frise-ressort-doux) backwards;
+  animation-delay: calc(.25s + var(--i) * 5ms);
+}
+
+@keyframes frise-pousse-barre {
+  from {
+    transform: scaleX(calc(1 / var(--z, 1))) scaleY(0);
+  }
+}
+
+.frise-an {
+  position: absolute;
+  transform-origin: 0 0;
+  transform: scaleX(calc(1 / var(--z, 1)));
+  bottom: 0;
+  left: calc(var(--i) * var(--frise-pas) + .32rem);
+  color: var(--muted);
+  font: 700 .68rem/1 Space, Arial, sans-serif;
+  letter-spacing: .02em;
+}
+
+/* La tête de lecture : un trait d'encre et une étiquette dans l'esprit du .cta. */
+.frise-tete {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+.frise-trait {
+  position: absolute;
+  left: -1.5px;
+  top: 1.7rem;
+  bottom: .82rem;
+  width: 3px;
+  background: var(--ink);
+}
+
+.frise-etiquette {
+  position: absolute;
+  top: .15rem;
+  left: 0;
+  box-sizing: border-box;
+  width: 8.2rem;
+  padding: .4rem .3rem;
+  transform: translateX(-50%);
+  background: var(--frise-tete);
+  color: var(--frise-tete-encre);
+  border: 1.5px solid var(--ink);
+  box-shadow: var(--frise-ombre);
+  font: 700 .68rem/1 Space, Arial, sans-serif;
+  letter-spacing: .06em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.frise-annonce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Petit message au-dessus de la frise. */
+.frise-message {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--frise-hauteur) + .9rem);
+  z-index: 6;
+  max-width: min(90vw, 26rem);
+  margin: 0;
+  padding: .6rem .9rem;
+  background: var(--ink);
+  color: var(--paper);
+  font: 600 .85rem/1.3 Space, Arial, sans-serif;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, .6rem);
+  transition: opacity .2s, transform .45s var(--frise-ressort);
+}
+
+.frise-message.est-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Téléphone et tablette : la piste défile sous une tête centrée, comme une règle.
+   Le même seuil est lu par le script. */
+@media (max-width: 59.99em) {
+  .frise-int {
+    grid-template-rows: 2.75rem auto;
+    gap: 0;
+    width: 100%;
+    padding-top: .4rem;
+  }
+
+  .frise-aujourdhui {
+    grid-area: 1 / 2;
+    z-index: 1;
+    margin-right: 3.5vw;
+    padding: 0 .5rem;
+    font-size: .78rem;
+  }
+
+  .frise-piste {
+    grid-area: 1 / 1 / 3 / 3;
+    height: 6.25rem;
+  }
+
+  .frise-etiquette {
+    top: .5rem;
+    width: 7.7rem;
+  }
+
+  .frise-trait {
+    top: 2.1rem;
+  }
+}
+
+@media (max-width: 21.9em) {
+  .frise-etiquette {
+    width: 6.6rem;
+    font-size: .58rem;
+    letter-spacing: .03em;
+  }
+}
+
+/* ------------------------------------------------------------------ 3. La une d'un mois */
+
+.frise-archives .fed-hero,
+.frise-archives .journal-hero {
+  display: none;
+}
+
+.frise-une {
+  margin: 2rem 0 3rem;
+  font-family: Space, Arial, sans-serif;
+}
+
+.journal .frise-une {
+  margin: 0;
+  padding: 2rem 0 2.8rem;
+  font-family: inherit;
+}
+
+/* Le bandeau fin : où l'on est. */
+.fu-bandeau {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding: .42rem .8rem;
+  background: var(--frise-bandeau-fond);
+  color: var(--frise-bandeau-encre);
+  border: 1px solid var(--frise-filet);
+  border-bottom: 0;
+  font: 700 .75rem/1.3 Space, Arial, sans-serif;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.journal .fu-bandeau {
+  border: 0;
+}
+
+.fu-retour {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-decoration: underline;
+  text-transform: inherit;
+  text-underline-offset: .16em;
+  white-space: nowrap;
+}
+
+/* La grille : la date, l'article principal, l'image, « Ce mois-là ». */
+.fu-bloc {
+  --fu-marge: clamp(1.4rem, 2.6vw, 2.5rem);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, .7fr) minmax(0, .87fr);
+  grid-template-rows: auto 1fr;
+  border: 1px solid var(--frise-une-filet);
+}
+
+.journal .fu-bloc {
+  column-gap: 1.5rem;
+  grid-template-columns: minmax(0, 1.27fr) minmax(0, 1fr) minmax(0, .74fr);
+  border: 0;
+  padding-top: 1.5rem;
+}
+
+/* Le fond rouge du site fédéral, et son quart de cercle. */
+.fu-fond {
+  grid-area: 1 / 1 / 3 / 3;
+  position: relative;
+  overflow: hidden;
+  background: var(--frise-une-fond);
+}
+
+.journal .fu-fond {
+  display: none;
+}
+
+/* Le quart de cercle jaune se remplit de janvier à décembre, comme une aiguille. */
+.fu-astre {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: clamp(4.6rem, 11.5vw, 9.6rem);
+  aspect-ratio: 1;
+  view-transition-name: frise-astre;
+}
+
+.fu-astre::after,
+.fu-astre i {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0 0 0 100%;
+}
+
+.fu-astre::after {
+  border-left: 1px solid var(--frise-une-accent);
+  border-bottom: 1px solid var(--frise-une-accent);
+}
+
+.fu-astre i {
+  background: var(--frise-une-accent);
+  transform-origin: 100% 0;
+  transition: transform .8s var(--frise-ressort);
+}
+
+.fu-quand,
+.fu-principal,
+.fu-image,
+.fu-cote {
+  position: relative;
+  min-width: 0;
+}
+
+.fu-quand,
+.fu-principal,
+.fu-image {
+  color: var(--frise-une-encre);
+}
+
+.fu-quand {
+  grid-area: 1 / 1 / 2 / 2;
+  container-type: inline-size;
+  padding: var(--fu-marge) var(--fu-marge) 0;
+}
+
+.fu-principal {
+  grid-area: 2 / 1 / 3 / 2;
+  padding: .9rem var(--fu-marge) var(--fu-marge);
+}
+
+.fu-image {
+  grid-area: 1 / 2 / 3 / 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  margin: 0;
+  padding: var(--fu-marge) var(--fu-marge) var(--fu-marge) 0;
+}
+
+.fu-cote {
+  grid-area: 1 / 3 / 3 / 4;
+  align-self: start;
+  padding: clamp(1.1rem, 2.1vw, 1.9rem);
+}
+
+.journal .fu-quand,
+.journal .fu-principal,
+.journal .fu-image {
+  padding: 0;
+}
+
+.journal .fu-principal {
+  padding-top: 1rem;
+}
+
+.journal .fu-image {
+  display: block;
+}
+
+.journal .fu-cote {
+  padding: 0 0 0 1.25rem;
+  border-left: 1px solid var(--line);
+}
+
+/* Sans image, ou quand la liste s'ouvre, le texte prend la place libre. */
+.fu-bloc.sans-image .fu-quand {
+  grid-column: 1 / 3;
+}
+
+.fu-bloc.sans-image .fu-principal {
+  grid-column: 1 / 3;
+}
+
+.fu-bloc.est-large {
+  grid-template-rows: auto 1fr auto;
+}
+
+.fu-bloc.est-large .fu-fond {
+  grid-area: 1 / 1 / 3 / 4;
+}
+
+.fu-bloc.est-large .fu-quand,
+.fu-bloc.est-large .fu-principal {
+  grid-column: 1 / 3;
+}
+
+.fu-bloc.est-large .fu-image {
+  grid-area: 1 / 3 / 3 / 4;
+}
+
+.fu-bloc.est-large.sans-image .fu-quand,
+.fu-bloc.est-large.sans-image .fu-principal {
+  grid-column: 1 / 4;
+}
+
+.fu-bloc.est-large .fu-cote {
+  grid-area: 3 / 1 / 4 / 4;
+}
+
+.journal .fu-bloc.est-large .fu-cote {
+  margin-top: 1.6rem;
+  padding: 0;
+  border-left: 0;
+}
+
+/* La date en très grand, lettre par lettre. */
+.fu-date {
+  margin: 0;
+  contain: layout;
+  font: 700 clamp(3.2rem, 6.3vw, 6.7rem)/.86 Space, Arial, sans-serif;
+  font-weight: var(--fu-graisse, 700);
+  letter-spacing: -.075em;
+  text-transform: uppercase;
+  view-transition-name: frise-date-vive;
+}
+
+@supports (font-size: 1cqi) {
+  .fu-date {
+    font-size: min(17cqi, clamp(3.2rem, 6.3vw, 6.7rem));
+  }
+}
+
+.frise-bascule .fu-date {
+  view-transition-name: frise-date;
+}
+
+.fu-ligne {
+  display: block;
+  white-space: nowrap;
+}
+
+.fu-annee {
+  color: var(--frise-une-accent);
+}
+
+.fu-case {
+  display: inline-block;
+  transform-origin: 50% 58%;
+}
+
+.fu-lu {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* L'article principal. */
+.fu-principal .kicker {
+  margin: 0 0 .35rem;
+  color: var(--frise-une-rubrique);
+  view-transition-name: frise-rubrique;
+}
+
+.fu-titre {
+  max-width: 24ch;
+  margin: 0 0 .55rem;
+  font-size: clamp(1.35rem, 2.05vw, 1.85rem);
+  letter-spacing: -.045em;
+  view-transition-name: frise-titre;
+}
+
+.fu-titre a,
+.fu-carte h3 a {
+  text-decoration: none;
+}
+
+.fu-titre a:hover,
+.fu-carte h3 a:hover {
+  text-decoration: underline;
+}
+
+.fu-extrait {
+  max-width: 46ch;
+  margin: 0 0 1rem;
+  font-size: .98rem;
+  line-height: 1.45;
+  view-transition-name: frise-extrait;
+}
+
+.journal .fu-extrait {
+  font-size: 1.08rem;
+}
+
+.fu-titre,
+.fu-extrait,
+.fu-carte h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.fu-principal .cta {
+  view-transition-name: frise-lien;
+}
+
+.fu-principal a:focus-visible,
+.fu-retour:focus-visible {
+  outline-color: var(--frise-une-accent);
+}
+
+.fu-vide {
+  margin: .2rem 0 1.1rem;
+  font-size: clamp(1.15rem, 1.8vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: -.03em;
+}
+
+/* L'image de l'article principal. */
+.fu-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 15rem;
+  object-fit: cover;
+  object-position: 50% 0;
+  border: 1px solid var(--frise-une-encre);
+  box-shadow: 4px 4px 0 var(--frise-une-accent);
+  view-transition-name: frise-image;
+}
+
+.journal .fu-image img {
+  max-height: 22rem;
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+/* « Ce mois-là ». */
+.fu-cote > .kicker {
+  margin: 0 0 .7rem;
+}
+
+.journal .fu-cote > .kicker {
+  padding-bottom: .7rem;
+  border-bottom: 3px solid var(--ink);
+}
+
+.fu-liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fu-carte {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 .8rem;
+  padding: .65rem 0 .7rem;
+  border-top: 1px solid var(--line);
+}
+
+.journal .fu-cote:not(.est-ouverte) .fu-carte:first-child {
+  border-top: 0;
+}
+
+.fu-carte .kicker {
+  grid-column: 1;
+  margin: 0 0 .25rem;
+  font-size: .68rem;
+}
+
+.fu-carte h3 {
+  grid-column: 1;
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+
+.fu-carte img {
+  grid-area: 1 / 2 / 3 / 3;
+  width: 3.9rem;
+  height: 3.9rem;
+  object-fit: cover;
+  object-position: 50% 0;
+  border: 1px solid var(--line);
+}
+
+.fu-suite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: .3rem;
+  padding: .5rem .8rem;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 700 .88rem/1.2 Space, Arial, sans-serif;
+  text-align: left;
+  transition: transform .18s var(--frise-ressort);
+}
+
+.fu-suite:hover {
+  transform: translate(-1px, -1px);
+}
+
+/* La liste ouverte : toutes les publications du mois, jour après jour. */
+.fu-cote.est-ouverte .fu-liste {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 1.9rem;
+}
+
+.fu-cote.est-ouverte .fu-suite {
+  width: auto;
+  margin-top: 1rem;
+}
+
+/* Pendant le geste, ce qui n'est pas encore à jour s'efface à demi. */
+.fu-principal > *,
+.fu-image img,
+.fu-cote {
+  transition: opacity .18s linear;
+}
+
+.frise-une.en-transit .fu-principal > *,
+.frise-une.en-transit .fu-image img,
+.frise-une.en-transit .fu-cote {
+  opacity: .28;
+}
+
+/* Entrées. */
+@keyframes frise-entree {
+  from {
+    opacity: 0;
+    transform: translateY(.7rem);
+  }
+}
+
+.frise-une.est-arrivee .fu-bloc {
+  animation: frise-entree .45s var(--frise-ressort-doux) backwards;
+}
+
+.fu-carte.en-cascade {
+  animation: frise-entree .55s var(--frise-ressort-doux) backwards;
+  animation-delay: calc(60ms + var(--rang, 0) * 55ms);
+}
+
+/* Les cartes plus bas dans la liste entrent au fil du défilement. */
+@supports (animation-timeline: view()) {
+  .fu-carte.au-defilement {
+    animation: frise-entree linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 90%;
+  }
+}
+
+/* ------------------------------------------------------------------ 4. Largeurs */
+
+@media (max-width: 840px) {
+  .fu-bloc,
+  .journal .fu-bloc {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .fu-bloc .fu-fond,
+  .fu-bloc.est-large .fu-fond {
+    grid-area: 1 / 1 / 3 / 3;
+  }
+
+  .fu-bloc .fu-quand,
+  .fu-bloc.est-large .fu-quand {
+    grid-area: 1 / 1 / 2 / 2;
+  }
+
+  .fu-bloc .fu-principal,
+  .fu-bloc.est-large .fu-principal {
+    grid-area: 2 / 1 / 3 / 2;
+  }
+
+  .fu-bloc .fu-image,
+  .fu-bloc.est-large .fu-image {
+    grid-area: 1 / 2 / 3 / 3;
+  }
+
+  .fu-bloc.sans-image .fu-quand,
+  .fu-bloc.sans-image .fu-principal,
+  .fu-bloc.est-large.sans-image .fu-quand,
+  .fu-bloc.est-large.sans-image .fu-principal {
+    grid-column: 1 / 3;
+  }
+
+  .fu-bloc .fu-cote,
+  .fu-bloc.est-large .fu-cote {
+    grid-area: 3 / 1 / 4 / 3;
+  }
+
+  .journal .fu-bloc .fu-cote {
+    margin-top: 1.4rem;
+    padding: 0;
+    border-left: 0;
+  }
+
+  .fu-cote .fu-liste,
+  .fu-cote.est-ouverte .fu-liste {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 1.6rem;
+  }
+
+  .journal .fu-cote:not(.est-ouverte) .fu-carte:first-child {
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 580px) {
+  .fu-bloc,
+  .journal .fu-bloc {
+    --fu-marge: 1.25rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .fu-bloc .fu-fond,
+  .fu-bloc.est-large .fu-fond {
+    grid-area: 1 / 1 / 4 / 2;
+  }
+
+  .fu-bloc .fu-quand,
+  .fu-bloc.est-large .fu-quand,
+  .fu-bloc.sans-image .fu-quand,
+  .fu-bloc.est-large.sans-image .fu-quand {
+    grid-area: 1 / 1 / 2 / 2;
+    padding-top: 1.9rem;
+  }
+
+  .fu-bloc .fu-image,
+  .fu-bloc.est-large .fu-image {
+    grid-area: 2 / 1 / 3 / 2;
+    padding: 1.1rem var(--fu-marge) 0;
+  }
+
+  .fu-bloc .fu-principal,
+  .fu-bloc.est-large .fu-principal,
+  .fu-bloc.sans-image .fu-principal,
+  .fu-bloc.est-large.sans-image .fu-principal {
+    grid-area: 3 / 1 / 4 / 2;
+    padding-bottom: 1.7rem;
+  }
+
+  .fu-bloc .fu-cote,
+  .fu-bloc.est-large .fu-cote {
+    grid-area: 4 / 1 / 5 / 2;
+    padding: 1.1rem var(--fu-marge) 1.25rem;
+    border-top: 1px solid var(--frise-une-filet);
+  }
+
+  .journal .fu-bloc .fu-quand,
+  .journal .fu-bloc .fu-image,
+  .journal .fu-bloc .fu-principal,
+  .journal .fu-bloc .fu-cote {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .journal .fu-bloc .fu-quand {
+    padding-top: 0;
+  }
+
+  .journal .fu-bloc .fu-principal {
+    padding-bottom: 0;
+  }
+
+  .fu-date {
+    font-size: clamp(3rem, 14.5vw, 3.6rem);
+  }
+
+  .fu-astre {
+    width: 5.5rem;
+  }
+
+  .fu-image img,
+  .journal .fu-image img {
+    max-height: 13.5rem;
+  }
+
+  .fu-titre {
+    max-width: none;
+  }
+
+  .fu-cote .fu-liste,
+  .fu-cote.est-ouverte .fu-liste {
+    display: block;
+  }
+
+  .fu-retour {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ 5. Passages d'une une à l'autre */
+
+/* Le titre et la date de l'accueil se transforment en ceux de la une, et retour. */
+.fed-hero .lead-fed h1,
+.journal-hero .une h1 {
+  view-transition-name: frise-date;
+}
+
+.fed-hero .lead-fed > p:not(.kicker),
+.journal-hero .une .deck {
+  view-transition-name: frise-extrait;
+}
+
+.fed-hero .lead-fed .cta,
+.journal-hero .une .cta {
+  view-transition-name: frise-lien;
+}
+
+.journal-hero .une-image img {
+  view-transition-name: frise-image;
+}
+
+/* La page reste utilisable pendant le passage. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Ce qui bouge en direct (la frise, la date, le quart de cercle) n'est jamais figé. */
+::view-transition-old(frise-barre),
+::view-transition-old(frise-date-vive),
+::view-transition-old(frise-astre) {
+  display: none;
+}
+
+::view-transition-new(frise-barre),
+::view-transition-new(frise-date-vive),
+::view-transition-new(frise-astre),
+::view-transition-group(frise-barre),
+::view-transition-group(frise-date-vive),
+::view-transition-group(frise-astre) {
+  animation: none;
+}
+
+::view-transition-group(frise-date),
+::view-transition-group(frise-titre),
+::view-transition-group(frise-rubrique),
+::view-transition-group(frise-extrait),
+::view-transition-group(frise-lien),
+::view-transition-group(frise-image) {
+  animation-duration: .5s;
+  animation-timing-function: var(--frise-ressort-doux);
+}
+
+/* Vers le passé, l'ancien texte part à droite et le nouveau vient de la gauche,
+   comme la piste ; vers le présent, l'inverse. */
+@keyframes frise-part-a-droite {
+  to {
+    opacity: 0;
+    transform: translateX(1.6rem);
+  }
+}
+
+@keyframes frise-part-a-gauche {
+  to {
+    opacity: 0;
+    transform: translateX(-1.6rem);
+  }
+}
+
+@keyframes frise-vient-de-gauche {
+  from {
+    opacity: 0;
+    transform: translateX(-1.6rem);
+  }
+}
+
+@keyframes frise-vient-de-droite {
+  from {
+    opacity: 0;
+    transform: translateX(1.6rem);
+  }
+}
+
+:root[data-frise-sens="passe"]::view-transition-old(frise-titre),
+:root[data-frise-sens="passe"]::view-transition-old(frise-rubrique),
+:root[data-frise-sens="passe"]::view-transition-old(frise-extrait) {
+  animation: frise-part-a-droite .2s ease-in both;
+}
+
+:root[data-frise-sens="passe"]::view-transition-new(frise-titre),
+:root[data-frise-sens="passe"]::view-transition-new(frise-rubrique),
+:root[data-frise-sens="passe"]::view-transition-new(frise-extrait) {
+  animation: frise-vient-de-gauche .5s var(--frise-ressort-doux) both;
+}
+
+:root[data-frise-sens="futur"]::view-transition-old(frise-titre),
+:root[data-frise-sens="futur"]::view-transition-old(frise-rubrique),
+:root[data-frise-sens="futur"]::view-transition-old(frise-extrait) {
+  animation: frise-part-a-gauche .2s ease-in both;
+}
+
+:root[data-frise-sens="futur"]::view-transition-new(frise-titre),
+:root[data-frise-sens="futur"]::view-transition-new(frise-rubrique),
+:root[data-frise-sens="futur"]::view-transition-new(frise-extrait) {
+  animation: frise-vient-de-droite .5s var(--frise-ressort-doux) both;
+}
+
+/* ------------------------------------------------------------------ 6. Mouvement réduit, impression */
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  .frise,
+  .frise *,
+  .frise-une *,
+  .frise-message {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .frise.est-saisie .frise-ruban {
+    --frise-zy: 1;
+  }
+
+  .frise-ruban {
+    transition: none;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+@media print {
+  .frise,
+  .frise-message,
+  .fu-suite,
+  .fu-retour {
+    display: none !important;
+  }
+}
+
+/* Frise saisie : le trait de la tête s'arrête au-dessus du nom du mois. */
+.frise-trait {
+  transition: transform .3s var(--frise-ressort-doux);
+  transform-origin: 50% 0;
+}
+
+@media (max-width: 59.99em) {
+  .frise.est-saisie .frise-trait {
+    transform: scaleY(.84);
+  }
+}
+
+/* Pas d'aiguille : le mois actif se reconnaît à sa barre, qui passe du gris au jaune. */
+.frise-trait {
+  display: none;
+}
+
+.frise-mois {
+  transition: background-color .3s ease, box-shadow .3s ease, outline-color .3s ease;
+  outline: 1.5px solid transparent;
+}
+
+.frise-mois.est-choisi {
+  outline-color: var(--ink);
+}
+
+/* Frise saisie : la bande entière grandit, avec un ressort. */
+.frise-piste {
+  transition: height .5s var(--frise-ressort-doux);
+}
+
+.frise.est-saisie .frise-piste {
+  height: 9rem;
+}
+
+.frise.est-saisie .frise-ruban {
+  --frise-zy: 2.3;
+}
+
+@media (max-width: 59.99em) {
+  .frise.est-saisie .frise-piste {
+    height: 10.5rem;
+  }
+}
+
+/* Barre active lisible : 12 px au moins, une hauteur minimale, au-dessus des voisines. */
+.frise-mois.est-choisi {
+  --frise-largeur-barre: max(12px, calc(var(--frise-pas) - 3px));
+  height: max(1.1rem, calc(var(--h) * 1.75rem));
+  z-index: 2;
+}
+
+@media (max-width: 59.99em) {
+  .frise-mois.est-choisi {
+    --frise-largeur-barre: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frise-piste {
+    transition: none;
+  }
+
+  .frise.est-saisie .frise-piste {
+    height: 5.2rem;
+  }
+
+  .frise.est-saisie .frise-ruban {
+    --frise-zy: 1;
+  }
+
+  .frise.est-saisie .frise-lettre {
+    opacity: 0;
+  }
+
+  .frise.est-saisie .frise-an {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width: 59.99em) {
+  .frise.est-saisie .frise-piste {
+    height: 6.25rem;
+  }
+}

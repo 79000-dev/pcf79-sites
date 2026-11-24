@@ -1,0 +1,15 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//PCF 79//Calendrier fédéral//FR
+CALSCALE:GREGORIAN
+X-WR-CALNAME:PCF 79 — Niort et Thouars
+BEGIN:VEVENT
+UID:red-social-club-kurdes-20261120@pcf79.com
+DTSTAMP:20261120T120000Z
+DTSTART:20261120T180000Z
+SEQUENCE:0
+SUMMARY:Red Social Club — La lutte des Kurdes
+LOCATION:23 rue des Fossés\, Niort
+DESCRIPTION:Rencontre annoncée avec Pascal Torre de France-Kurdistan.
+END:VEVENT
+END:VCALENDAR
