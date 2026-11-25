@@ -1,6 +1,6 @@
 /* Frise chronologique — PCF 79 et La Voix des Luttes.
    Lit window.FRISE_DONNEES (fabriqué par outils/frise_donnees.py), construit la frise
-   en bas de l'écran et la une du mois choisi en haut de la page.
+   en bas de l'écran, la une du mois choisi et le sommaire annuel du site fédéral.
    Aucune dépendance. */
 'use strict';
 
@@ -59,6 +59,68 @@
     return `il y a ${morceaux.join(' et ')}`;
   };
   const echapper = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+  /* ---------------------------------------------------------- L'actualité fédérale de l'année */
+
+  const labelActualites = document.querySelector('[data-actualites-mois]');
+  const rubriqueActualites = labelActualites?.closest('#actualites');
+  const articlesDuMois = rubriqueActualites?.querySelector('#stories');
+  const labelDuMois = labelActualites?.textContent;
+  let anneeAffichee = null;
+  let actualitesAnnuelles;
+
+  function afficherActualitesAnnuelles(annee) {
+    if (!articlesDuMois || !DONNEES.archivesEnLigne || annee === anneeAffichee) return;
+    anneeAffichee = annee;
+    labelActualites.textContent = annee === null ? labelDuMois : `Archives de ${annee}`;
+    articlesDuMois.hidden = annee !== null;
+    if (annee === null) {
+      actualitesAnnuelles.hidden = true;
+      return;
+    }
+    if (!actualitesAnnuelles) {
+      actualitesAnnuelles = document.createElement('div');
+      actualitesAnnuelles.className = 'frise-actualites';
+      articlesDuMois.after(actualitesAnnuelles);
+    }
+
+    const edition = new Map();
+    for (const article of window.ARTICLES || []) {
+      const [date, nom, an] = article.date.split(' ');
+      const m = MOIS.indexOf(nom);
+      if (Number(an) !== annee || m < 0) continue;
+      const iso = `${an}-${String(m + 1).padStart(2, '0')}-${date.replace('er', '').padStart(2, '0')}`;
+      if (!edition.has(m)) edition.set(m, []);
+      edition.get(m).push({
+        date: iso, titre: article.title, extrait: article.deck, type: article.type,
+        ancre: `#article/${encodeURIComponent(article.id)}`,
+      });
+    }
+
+    const moisDeLAnnee = mois.filter((x) => x.an === annee).reverse();
+    const contenu = moisDeLAnnee.map(({ m, pubs }) => {
+      const articles = [...pubs, ...(edition.get(m) || [])].sort((a, b) => b.date.localeCompare(a.date));
+      if (!articles.length) return '';
+      const cartes = articles.map((p) => `
+        <article>
+          <p class="kicker">${p.type ? echapper(p.type) + ' · ' : ''}<time datetime="${echapper(p.date)}">${jour(p.date)}</time></p>
+          <h4><a href="${echapper(p.ancre || lienArchive(p))}">${echapper(p.titre)}</a></h4>
+          ${p.extrait ? `<p>${echapper(p.extrait)}</p>` : ''}
+        </article>`).join('');
+      return `<section><h3>${MOIS[m]} ${annee}</h3><div class="frise-actualites-liste">${cartes}</div></section>`;
+    }).join('');
+    actualitesAnnuelles.innerHTML = contenu || '<p>Aucune publication pour cette année.</p>';
+    actualitesAnnuelles.hidden = false;
+  }
+
+  if (articlesDuMois) {
+    document.addEventListener('click', (event) => {
+      if (anneeAffichee === null || event.defaultPrevented || event.metaKey || event.ctrlKey ||
+          event.shiftKey || event.altKey || !event.target.closest('a[href="#actualites"]')) return;
+      event.preventDefault();
+      rubriqueActualites.scrollIntoView();
+    });
+  }
 
   /* ---------------------------------------------------------- Le choix de l'article principal
 
@@ -385,6 +447,7 @@
     annonce.textContent = `${nomMois(i)}, ${compte(mois[i].pubs.length)}`;
     ecrireAdresse(i);
     const veut = i < DERNIER;
+    afficherActualitesAnnuelles(veut ? mois[i].an : null);
     const sens = i < contenuDe || (!archives && veut) ? -1 : 1;
     if (veut !== archives) {
       avecPassage(() => {
@@ -690,6 +753,7 @@
     montrerArchives(true);
     ecrireDate(depart, false, 1);
     remplir(depart);
+    afficherActualitesAnnuelles(mois[depart].an);
     une.classList.add('est-arrivee');
   }
   // Démonstration : ?saisie montre la frise saisie (zoom), une fois la page posée.
