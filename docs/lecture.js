@@ -4,31 +4,45 @@ const articles = window.ARTICLES;
 const home = document.querySelector('#home');
 const search = document.querySelector('#filter');
 const status = document.querySelector('#matches');
+const monthLabel = document.querySelector('[data-actualites-mois]');
+const currentMonth = monthLabel && new Intl.DateTimeFormat('fr-FR', {
+  month: 'long', year: 'numeric', timeZone: 'Europe/Paris',
+}).format(new Date());
+if (monthLabel) monthLabel.textContent = currentMonth;
 const cards = Array.from(document.querySelectorAll('[data-story]'));
 const readers = Array.from(document.querySelectorAll('.reader'));
 const normalize = (text) => text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
 
 function showResults(tag = '') {
-  const terms = normalize(search.value).trim().split(/\s+/);
+  const query = search?.value.trim() || '';
+  const terms = normalize(query).split(/\s+/).filter(Boolean);
   let count = 0;
   articles.forEach((article, index) => {
     const text = normalize([
       article.date, article.place, article.category, article.title,
       article.deck, ...article.tags, ...article.paragraphs,
     ].join(' '));
-    const visible = (!tag || article.tags.includes(tag)) && terms.every((term) => text.includes(term));
+    const current = !currentMonth || normalize(article.date).endsWith(normalize(currentMonth));
+    const visible = current && (!tag || article.tags.includes(tag)) && terms.every((term) => text.includes(term));
     cards[index].hidden = !visible;
     count += Number(visible);
   });
-  status.textContent = search.value || tag ? `${count} article${count === 1 ? '' : 's'}` : '';
+  if (status) status.textContent = query || tag ? `${count} article${count === 1 ? '' : 's'}` : '';
 }
 
 for (const [index, article] of articles.entries()) {
   const related = readers[index].querySelector('.related');
-  const next = articles.find((candidate) => candidate.id !== article.id
-    && candidate.tags.some((tag) => article.tags.includes(tag) && tag !== 'Niort'))
-    || articles.find((candidate) => candidate.id !== article.id
-      && candidate.tags.some((tag) => article.tags.includes(tag)));
+  let next;
+  let bestScore = 0;
+  for (const candidate of articles) {
+    if (candidate.id === article.id) continue;
+    const sharedTags = candidate.tags.filter((tag) => article.tags.includes(tag));
+    const score = sharedTags.length * 2 - Number(sharedTags.includes('Niort'));
+    if (score > bestScore) {
+      next = candidate;
+      bestScore = score;
+    }
+  }
   if (next) {
     const link = document.createElement('a');
     link.href = `#article/${next.id}`;
@@ -37,7 +51,6 @@ for (const [index, article] of articles.entries()) {
   }
 }
 
-let selectedTag = '';
 function navigate(initial = false) {
   const active = readers.find((reader) => '#' + reader.id === location.hash);
   home.hidden = Boolean(active);
@@ -54,19 +67,15 @@ function navigate(initial = false) {
 document.addEventListener('click', (event) => {
   const tagLink = event.target.closest('[data-tag]');
   if (tagLink) {
-    selectedTag = tagLink.dataset.tag;
-    search.value = '';
-    showResults(selectedTag);
+    if (search) search.value = '';
+    showResults(tagLink.dataset.tag);
   } else if (event.target.closest('a[href="#actualites"]')) {
-    selectedTag = '';
-    search.value = '';
+    if (search) search.value = '';
     showResults();
   }
 });
-search.addEventListener('input', () => {
-  selectedTag = '';
-  showResults();
-});
+search?.addEventListener('input', () => showResults());
+if (monthLabel) showResults();
 window.addEventListener('hashchange', () => navigate());
 navigate(true);
 
